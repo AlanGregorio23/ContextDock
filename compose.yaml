@@ -1,0 +1,90 @@
+name: contextdock
+x-app: &app
+  image: contextdock-app:local
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+    target: app
+  env_file: .env
+  volumes:
+    - storage:/var/www/html/storage
+    - documents:/documents
+    - backups:/backups
+  restart: unless-stopped
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-contextdock}
+      POSTGRES_USER: ${DB_USERNAME:-contextdock}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Run the setup script first}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, 'yes']
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+  ollama:
+    image: ollama/ollama:0.18.0
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      test: [CMD, ollama, list]
+      interval: 10s
+      retries: 20
+    restart: unless-stopped
+  init:
+    <<: *app
+    command: [php, artisan, migrate, --force]
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  app:
+    <<: *app
+    depends_on:
+      init:
+        condition: service_completed_successfully
+  worker:
+    <<: *app
+    command: [php, artisan, queue:work, --sleep=2, --tries=3, --timeout=300, --max-time=3600]
+    stop_grace_period: 310s
+    depends_on:
+      init:
+        condition: service_completed_successfully
+  scheduler:
+    <<: *app
+    command: [php, artisan, schedule:work]
+    depends_on:
+      init:
+        condition: service_completed_successfully
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: web
+    ports:
+      - '${BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8090}:80'
+    depends_on:
+      - app
+    restart: unless-stopped
+volumes:
+  postgres:
+  redis:
+  ollama:
+  storage:
+  documents:
+  backups:

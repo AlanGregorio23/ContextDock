@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+vendor
+node_modules
+scaffold
+storage/logs/*
+storage/framework/views/*
+storage/app/private/*
+tests
+.tools

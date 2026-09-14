@@ -1,0 +1,9 @@
+{
+  "name": "@contextdock/mcp-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": { "start": "node index.mjs", "test": "node --test" },
+  "dependencies": { "@modelcontextprotocol/sdk": "1.30.0" }
+}
