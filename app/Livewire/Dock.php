@@ -55,7 +55,10 @@ class Dock extends Component
     public function updatedSearch(): void { $this->resetPage(); }
     public function updatedProjectId(): void
     {
-        $this->conversationId = '';
+        $this->conversationId = (string) (Conversation::where('user_id', auth()->id())
+            ->when($this->projectId !== '', fn ($q) => $q->where('project_id', $this->projectId))
+            ->latest('id')
+            ->value('id') ?? '');
         $this->contextResult = [];
         $this->resetPage();
     }
@@ -216,7 +219,10 @@ class Dock extends Component
         $owner = auth()->id();
         $projects = Project::where('user_id', $owner)->orderBy('name')->limit(50)->get();
         $workspaces = Workspace::where('user_id', $owner)->orderBy('name')->limit(50)->get();
-        $conversations = Conversation::where('user_id', $owner)->when($this->projectId !== '', fn ($q) => $q->where('project_id', $this->projectId))->latest()->limit(50)->get();
+        $conversations = Conversation::where('user_id', $owner)->when($this->projectId !== '', fn ($q) => $q->where('project_id', $this->projectId))->withCount('messages')->latest()->limit(50)->get();
+        if ($this->conversationId === '' && $conversations->isNotEmpty()) {
+            $this->conversationId = (string) $conversations->first()->id;
+        }
         $rows = null;
         $messages = collect();
         $stats = [];
@@ -228,7 +234,7 @@ class Dock extends Component
         } elseif ($this->section === 'documents') {
             $rows = Document::where('user_id', $owner)->when($this->projectId !== '', fn ($q) => $q->where('project_id', $this->projectId))->when($this->search !== '', fn ($q) => $q->where('name', 'ilike', '%'.$this->search.'%'))->latest()->paginate(15);
         } elseif ($this->section === 'conversations' && $this->conversationId !== '') {
-            $conversation = Conversation::where('user_id', $owner)->when($this->projectId !== '', fn ($q) => $q->where('project_id', $this->projectId))->find($this->conversationId);
+            $conversation = Conversation::where('user_id', $owner)->find($this->conversationId);
             if ($conversation) { $messages = Message::where('conversation_id', $conversation->id)->latest('id')->limit(50)->get()->reverse(); }
         } elseif (in_array($this->section, ['logs', 'backups'], true)) {
             $rows = AuditLog::where('user_id', $owner)->when($this->section === 'backups', fn ($q) => $q->where('action', 'like', 'backup%'))->when($this->search !== '', fn ($q) => $q->where('action', 'ilike', '%'.$this->search.'%'))->latest('created_at')->paginate(20);
