@@ -50,7 +50,7 @@ class McpTest extends TestCase
         $this->rpc('tools/list')->assertUnauthorized();
     }
 
-    public function test_http_initialization_and_discovery_expose_the_seven_tools(): void
+    public function test_http_initialization_and_discovery_expose_the_tools(): void
     {
         $this->authenticate();
         $this->rpc('initialize', [
@@ -63,6 +63,7 @@ class McpTest extends TestCase
         $this->assertEqualsCanonicalizing([
             'search_memory', 'store_memory', 'get_project_context', 'search_documents',
             'get_project_decisions', 'get_pinned_memories', 'get_recent_context',
+            'create_project', 'create_conversation', 'store_message',
         ], array_column($response->json('result.tools'), 'name'));
     }
 
@@ -158,5 +159,59 @@ class McpTest extends TestCase
         $this->callTool('get_pinned_memories', ['project_id' => -1])->assertOk()
             ->assertJsonPath('result.isError', true)
             ->assertJsonPath('result.content.0.text', 'Invalid arguments: project_id.');
+    }
+
+    public function test_tools_create_project_and_conversation_and_store_message(): void
+    {
+        $user = $this->authenticate(['context:read', 'context:write']);
+
+        $projectRes = $this->callTool('create_project', [
+            'name' => 'Qwen Managed Project',
+            'description' => 'Created via MCP by Qwen assistant',
+        ])->assertOk()->assertJsonPath('result.isError', false);
+
+        $projectId = $projectRes->json('result.structuredContent.project.id');
+        $this->assertDatabaseHas('projects', [
+            'id' => $projectId,
+            'user_id' => $user->id,
+            'name' => 'Qwen Managed Project',
+        ]);
+
+        $convRes = $this->callTool('create_conversation', [
+            'project_id' => $projectId,
+            'title' => 'Architecture Discussion with Qwen',
+            'source' => 'qwen',
+        ])->assertOk()->assertJsonPath('result.isError', false);
+
+        $convId = $convRes->json('result.structuredContent.conversation.id');
+        $this->assertDatabaseHas('conversations', [
+            'id' => $convId,
+            'project_id' => $projectId,
+            'source' => 'qwen',
+        ]);
+
+        $msgRes = $this->callTool('store_message', [
+            'conversation_id' => $convId,
+            'role' => 'user',
+            'content' => 'Please set up the repository architecture.',
+        ])->assertOk()->assertJsonPath('result.isError', false);
+
+        $this->assertDatabaseHas('messages', [
+            'conversation_id' => $convId,
+            'role' => 'user',
+            'content' => 'Please set up the repository architecture.',
+        ]);
+
+        $this->callTool('store_message', [
+            'conversation_id' => $convId,
+            'role' => 'assistant',
+            'content' => 'Repository architecture established successfully.',
+        ])->assertOk()->assertJsonPath('result.isError', false);
+
+        $this->assertDatabaseHas('messages', [
+            'conversation_id' => $convId,
+            'role' => 'assistant',
+            'content' => 'Repository architecture established successfully.',
+        ]);
     }
 }

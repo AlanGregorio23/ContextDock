@@ -84,7 +84,7 @@ L'Inspector mostra query, modello/dimensioni, candidati, similarità, ranking, e
 
 ## Interfacce
 
-MCP: search_memory, store_memory, get_project_context, search_documents, get_project_decisions, get_pinned_memories, get_recent_context. Integrazioni desktop tramite bridge stdio → HTTP MCP autenticato. Token ContextDock diversi da API key di provider; capability read/write e scadenza. Nessun accesso anonimo a dati.
+MCP: search_memory, store_memory, get_project_context, search_documents, get_project_decisions, get_pinned_memories, get_recent_context, create_project, create_conversation, store_message. Integrazioni desktop tramite bridge stdio → HTTP MCP autenticato. Qwen e agenti AI esterni gestiscono la creazione dei progetti e il salvataggio persistente dei turni di conversazione e memorie. Token ContextDock con capability read/write e scadenza. Nessun accesso anonimo a dati.
 
 API: POST /api/memory/search, /api/memory/store, /api/context, /api/context/debug, /api/documents; GET /api/projects/{project}/context; endpoint CRUD e append RAW. Service riutilizzabili in futuro da skill/plugin senza dipendenza da MCP.
 

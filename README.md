@@ -129,7 +129,7 @@ Le memorie contrassegnate come **Pinned** hanno priorità assoluta e vengono sem
 
 ## 🤖 Integrazione MCP (Model Context Protocol)
 
-ContextDock espone **7 strumenti MCP ufficiali**:
+ContextDock espone **10 strumenti MCP ufficiali**:
 
 | Tool | Descrizione |
 | --- | --- |
@@ -140,6 +140,16 @@ ContextDock espone **7 strumenti MCP ufficiali**:
 | `get_pinned_memories` | Recupera le memorie fissate in alto (pinned) per il progetto o l'utente. |
 | `get_recent_context` | Recupera le ultime conversazioni e memorie recenti ordinate per data. |
 | `search_documents` | Esegue una ricerca vettoriale sui frammenti (chunk) dei documenti indicizzati. |
+| `create_project` | Inizializza un nuovo progetto per l'utente (gestito da Qwen o altri agenti AI). Richiede `context:write`. |
+| `create_conversation` | Avvia una nuova sessione di chat/conversazione legata a un progetto. Richiede `context:write`. |
+| `store_message` | Salva un messaggio (utente o assistente) nella cronologia della conversazione. Richiede `context:write`. |
+
+### Ruolo di Qwen nella Gestione di Progetti e Chat
+ContextDock consente a Qwen (e a modelli/agenti esterni che dialogano via MCP o API) di operare come assistente attivo:
+- **Gestione Progetti**: Qwen può creare nuovi progetti (`create_project`) per organizzare differenti ambiti di lavoro.
+- **Tracciamento Chat**: Qwen avvia sessioni di dialogo (`create_conversation`) registrando l'origine (`source: 'qwen'`).
+- **Salvataggio Cronologia**: Ogni turno di conversazione (domanda utente e risposta dell'assistente) viene persistito nel database con `store_message`.
+- **Archiviazione Memorie Chiave**: Qwen archivia decisioni architetturali o preferenze con `store_memory`, che vengono vettorizzate localmente da Ollama (`qwen3-embedding:0.6b`) e restituite in modo deterministico nei successivi Context Pack.
 
 ### Configurazione per Claude Desktop (o altri client MCP)
 
